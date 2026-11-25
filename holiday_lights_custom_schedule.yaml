@@ -1,0 +1,139 @@
+blueprint:
+  name: Holiday Lights - Custom Two Schedules
+  description: >-
+    Control one or more lights or switches with two configurable daily schedules,
+    independently selectable weekdays, and an optional second schedule.
+  domain: automation
+  input:
+    target_switches:
+      name: Lights / switches
+      selector:
+        entity:
+          domain: switch
+          multiple: true
+    schedule_1_days:
+      name: Schedule 1 - Days
+      selector:
+        select:
+          multiple: true
+          options:
+            - label: Monday
+              value: mon
+            - label: Tuesday
+              value: tue
+            - label: Wednesday
+              value: wed
+            - label: Thursday
+              value: thu
+            - label: Friday
+              value: fri
+            - label: Saturday
+              value: sat
+            - label: Sunday
+              value: sun
+    schedule_1_on:
+      name: Schedule 1 - Turn ON
+      selector:
+        time: {}
+    schedule_1_off:
+      name: Schedule 1 - Turn OFF
+      selector:
+        time: {}
+    schedule_2_enabled:
+      name: Enable Schedule 2
+      default: false
+      selector:
+        boolean: {}
+    schedule_2_days:
+      name: Schedule 2 - Days
+      default:
+        - sat
+        - sun
+      selector:
+        select:
+          multiple: true
+          options:
+            - label: Monday
+              value: mon
+            - label: Tuesday
+              value: tue
+            - label: Wednesday
+              value: wed
+            - label: Thursday
+              value: thu
+            - label: Friday
+              value: fri
+            - label: Saturday
+              value: sat
+            - label: Sunday
+              value: sun
+    schedule_2_on:
+      name: Schedule 2 - Turn ON
+      default: "08:00:00"
+      selector:
+        time: {}
+    schedule_2_off:
+      name: Schedule 2 - Turn OFF
+      default: "23:00:00"
+      selector:
+        time: {}
+
+trigger:
+  - platform: time
+    at: !input schedule_1_on
+    id: s1_on
+  - platform: time
+    at: !input schedule_1_off
+    id: s1_off
+  - platform: time
+    at: !input schedule_2_on
+    id: s2_on
+  - platform: time
+    at: !input schedule_2_off
+    id: s2_off
+
+variables:
+  s1_days: !input schedule_1_days
+  s2_days: !input schedule_2_days
+  s2_enabled: !input schedule_2_enabled
+  today_key: "{{ now().strftime('%a').lower() }}"
+
+action:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: s1_on
+          - condition: template
+            value_template: "{{ today_key in s1_days }}"
+        sequence:
+          - service: switch.turn_on
+            target:
+              entity_id: !input target_switches
+      - conditions:
+          - condition: trigger
+            id: s1_off
+          - condition: template
+            value_template: "{{ today_key in s1_days }}"
+        sequence:
+          - service: switch.turn_off
+            target:
+              entity_id: !input target_switches
+      - conditions:
+          - condition: trigger
+            id: s2_on
+          - condition: template
+            value_template: "{{ s2_enabled and today_key in s2_days }}"
+        sequence:
+          - service: switch.turn_on
+            target:
+              entity_id: !input target_switches
+      - conditions:
+          - condition: trigger
+            id: s2_off
+          - condition: template
+            value_template: "{{ s2_enabled and today_key in s2_days }}"
+        sequence:
+          - service: switch.turn_off
+            target:
+              entity_id: !input target_switches
+mode: single
